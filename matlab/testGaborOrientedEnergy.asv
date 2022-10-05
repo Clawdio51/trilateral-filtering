@@ -1,0 +1,48 @@
+function [ F_even, F_odd ] = getGaborFilters ( theta, sigma, kernel_size, m )
+
+    if nargsin < 4
+        m=1;
+    end
+
+    % For 3x3 mask, lambda=1.1085 makes the integral 0 for sigma=1
+    k = floor(kernel_size/2);
+    x = [-k:k; -k:k; -k:k];
+    x = [-1 0 1; -1 0 1; -1 0 1];
+    y = [-1 -1 -1; 0 0 0; 1 1 1];
+    r = sqrt(x.^2+y.^2);
+    phi = atan2(y,x);
+    theta = 0;
+    sigma=2;
+
+    % Get optimal value of lambda
+    bounds = [-10 10];
+    lambda = mean(bounds);
+    v0 = 1;
+    
+    % Search for value of lambda
+    while(1)
+        xi = 0.5*exp(-lambda.*(r./sigma).^2) + 0.5;
+        F = exp(-r.^2./(2*sigma^2)) .* cos(2*pi*v0.*r.*xi);
+        integ = cumtrapz(F(:));     % Cumulative integral
+
+        % End condition
+        if abs(integ(end)) < 0.001   % Take last value in integ since it is the integral of the entire signal
+            break;
+        end
+
+        % Bisection method to find lambda such that integral=0
+        if integ(end) > 0
+            bounds(1) = lambda;
+            lambda = mean(bounds);
+        else 
+            bounds(2) = lambda;
+            lambda = mean(bounds);
+        end
+    end
+
+    % Even-Symmetric Filter
+    F_even = exp(-r.^2./(2*sigma^2)) .* cos(2*pi*v0.*r.*xi) .* cos(theta - phi).^(2*m);
+    % Odd-Symmetric Filter
+    F_odd = exp(-r.^2./(2*sigma^2)) .* sin(2*pi*v0.*r.*xi) .* sin(theta - phi).^(2*m);
+
+end
